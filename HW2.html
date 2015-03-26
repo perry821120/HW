@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+<style>
+#info {
+    position: absolute;
+    top: 0px;
+    width: 100%;
+    padding: 10px;
+    text-align: center;
+    color: #ff0000
+}
+#angleInfo {
+		position: absolute;
+		bottom: 100px; width: 100%;
+		color: #ffffff;
+		text-align: center;
+	}
+	strong {color: red}
+
+</style>
+</head>
+
+<body> 
+<div id = "info"> 
+<a href="javascript:moveDoor('open');">open</a>
+<a href="javascript:moveDoor('close');">close</a>
+</div>
+<audio id="door_creaking"  style="display:none">
+<source src="sounds/door_creaking.mp3" type='audio/mp3'>
+</audio>
+
+
+<script src="js/three.min.js"></script>
+<script src="js/OrbitControls.js"></script>
+
+
+<script>
+var camera, scene, renderer, light, controls;
+var frame,frame2;
+var bump =  THREE.ImageUtils.loadTexture('images/wood2.jpg');
+var door_open = false;
+var door_close = false;
+var angle=0;
+var angle2=-3.1416/2;
+var count=0;
+init();
+animate();
+
+
+function init() {
+var material2 = new THREE.MeshPhongMaterial( {color: 0xa86c00} );
+    scene = new THREE.Scene();
+
+    camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 10000);
+    camera.position.z = 500;
+    scene.add(camera);
+
+    frame = new THREE.Object3D();
+    scene.add(frame);
+    frame2 = new THREE.Object3D();
+    scene.add(frame2);
+
+    columnGeom = new THREE.BoxGeometry(5, 80, 3);
+    platformGeom = new THREE.BoxGeometry(40, 5, 3);
+    doorGeom = new THREE.BoxGeometry(39, 70, 3);
+    axisGeom = new THREE.CylinderGeometry(0.5,0.5,5,30);
+    handleGeom = new THREE.CylinderGeometry(2,2,2,30);
+    handle2Geom = new THREE.SphereGeometry(2.5,30,30);
+    material = new THREE.MeshLambertMaterial();
+   
+
+    var mesh = createMesh(columnGeom, 'wood.jpg','wood2.jpg');
+    var mesh2 = mesh.clone();
+    mesh.position.set(2.5, 40, -1.5);
+    mesh2.position.set(2.5 + 45, 40, -1.5);
+    var mesh1 = createMesh(platformGeom,'wood.jpg','wood2.jpg');
+    var mesh3 = mesh1.clone();
+    var mesh4 = createMesh(doorGeom,'wood.jpg','wood2.jpg');
+    var mesh5 = new THREE.Mesh(axisGeom,material2);
+    var mesh6 = mesh5.clone();
+    var mesh7 = new THREE.Mesh(handleGeom,material2);
+    var mesh8 = mesh7.clone();
+    var mesh9 = new THREE.Mesh(handle2Geom,material2);
+    var mesh10 = mesh9.clone();
+    mesh7.rotation.order = 'XYZ';
+    mesh7.rotation.x = Math.PI/2;
+    mesh8.rotation.order = 'XYZ';
+    mesh8.rotation.x = Math.PI/2;
+    mesh1.position.set(25, 2.5, -1.5);
+    mesh3.position.set(25, 77.5, -1.5);
+    mesh4.position.set(20, 40, -1);
+    mesh5.position.set(0,20, 0);
+    mesh6.position.set(0,60, 0);
+    mesh7.position.set(36,40,1.5);
+    mesh8.position.set(36,40,-3.5);
+    mesh9.position.set(36,40,4);
+    mesh10.position.set(36,40,-6);
+    frame.add(mesh);
+    frame.add(mesh1);
+    frame.add(mesh2);
+    frame.add(mesh3);
+    frame2.add(mesh4);
+    frame2.add(mesh5);
+    frame2.add(mesh6);
+    frame2.add(mesh7);
+    frame2.add(mesh8);
+    frame2.add(mesh9);
+    frame2.add(mesh10);
+
+    light = new THREE.PointLight(0xffffff);
+    light.position.set(100, 300, 200);
+    scene.add(light);
+
+    var gridXZ = new THREE.GridHelper(100, 10);
+    gridXZ.setColors(new THREE.Color(0xff0000), new THREE.Color(0xffffff));
+    scene.add(gridXZ);
+
+    renderer = new THREE.WebGLRenderer();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setClearColor(0xcccccc);
+
+    controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+    document.body.appendChild(renderer.domElement);
+
+}
+function moveDoor(mode){
+if(mode == 'open'){
+	door_open = true;
+	door_close = false;
+}
+if(mode == 'close'){
+	door_close = true;
+	door_open = false;
+}
+	}
+function createMesh(geom, imageFile, bump) 
+{
+	geom.computeVertexNormals();
+
+	var mat = new THREE.MeshPhongMaterial();
+	var texture = THREE.ImageUtils.loadTexture("images/" + imageFile)
+	mat.map = texture;
+
+	if (bump) {
+		var bump = THREE.ImageUtils.loadTexture("images/" + bump)
+		mat.bumpMap = bump;
+		mat.bumpScale = 0.2;
+	}
+
+	var mesh = new THREE.Mesh(geom, mat);
+
+	return mesh;
+}
+
+function animate() {
+
+ controls.update();
+    requestAnimationFrame(animate);
+    render();
+}
+
+
+function render() {
+frame2.position.set(5.5,0,-0.5);
+    renderer.render(scene, camera);
+if(door_open)
+{
+	if(frame2.rotation.y >= -3.1416/2){
+		frame2.rotation.y -=3.1416/350 ;
+		door_creaking.play();
+	}
+	if(frame2.totaion.y <= -3.1616/2){
+	  door_open = false;
+	}
+}
+if(door_close)
+{
+if(frame2.rotation.y <= 0){
+		frame2.rotation.y +=3.1416/350 ;
+		door_creaking.play();
+
+	}
+	
+	if(frame2.totaion.y >= 0){
+	  door_close = false;
+	}
+	
+
+ }
+    
+}
+
+</script>
+</body>
+
+</html>
