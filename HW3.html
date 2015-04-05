@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+<style>
+
+#info {
+    position: absolute;
+    top: 0px;
+    width: 100%;
+    padding: 10px;
+    text-align: center;
+    color: #ff0000
+}
+#angleInfo {
+		position: absolute;
+		bottom: 100px; width: 100%;
+		color: #ffffff;
+		text-align: center;
+	}
+	strong {color: red}
+</style>
+</head>
+
+<body> 
+<div id="info">up/down:change speed left/right:change sign</div>
+<script src="js/three.min.js"></script>
+<script src="js/OrbitControls.js"></script>
+<script src="js/KeyboardState.js"></script>
+<script type="x-shader/x-fragment" id="fragmentShaderDepth">
+    uniform sampler2D texture;
+    varying vec2 vUV;
+
+    vec4 pack_depth(const in float depth) {
+
+        const vec4 bit_shift = vec4(256.0 * 256.0 * 256.0, 256.0 * 256.0, 256.0, 1.0);
+        const vec4 bit_mask = vec4(0.0, 1.0 / 256.0, 1.0 / 256.0, 1.0 / 256.0);
+        vec4 res = fract(depth * bit_shift);
+        res -= res.xxyz * bit_mask;
+        return res;
+
+    }
+
+    void main() {
+
+        vec4 pixel = texture2D(texture, vUV);
+
+        if (pixel.a < 0.5) discard;
+
+        gl_FragData[0] = pack_depth(gl_FragCoord.z);
+
+    }
+</script>
+<script type="x-shader/x-vertex" id="vertexShaderDepth">
+    varying vec2 vUV;
+
+    void main() {
+
+        vUV = 1.0 * uv;
+
+        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+
+        gl_Position = projectionMatrix * mvPosition;
+
+    }
+</script>
+
+
+<script>
+var scene, renderer, camera, tire, controls, clock,spotLight;
+var sign = 1;
+var keyboard = new KeyboardState();
+var pos = new THREE.Vector3(0,0,0);
+var angle = 0,speed = 0;
+init();
+animate();
+
+function init()
+{
+	tire = new THREE.Object3D();
+	THREE.ImageUtils.crossOrigin = '';
+	scene = new THREE.Scene();
+    clock = new THREE.Clock();
+    var colormap = THREE.ImageUtils.loadTexture('images/tire1.png');
+	var cubeGeometry = new THREE.CircleGeometry (33,20);
+	var tirePattern = new THREE.CylinderGeometry(30, 30, 12, 30, 1, true);
+	var tireMaterial = new THREE.MeshPhongMaterial({
+        map: colormap,
+        transparent: true,  // for cut-out texture
+        side: THREE.DoubleSide
+    });
+	var mesh0 = new THREE.Mesh (cubeGeometry, tireMaterial);
+    mesh0.rotation.order = 'ZYX';
+    mesh0.rotation.z = Math.PI/2;
+    mesh0.position.set (0,0,0);
+	var mesh1 = mesh0.clone();
+	mesh1.rotation.y = Math.PI;
+	mesh1.position.set (0,0,-12);
+	var mesh2 = createMesh(tirePattern,'tire2.jpg','tire_bump.jpg');
+	mesh2.rotation.x = Math.PI / 2;
+	mesh2.position.set (0,0,-6);
+	tire.add (mesh0);
+	tire.add (mesh1);
+	tire.add (mesh2);
+	scene.add (tire);
+	renderer = new THREE.WebGLRenderer( {antialias:true} );
+    var width = window.innerWidth;
+    var height = window.innerHeight;
+	renderer.setSize (width, height);
+    renderer.setClearColor (0x888888);
+	
+	
+	
+	
+    camera = new THREE.PerspectiveCamera (45, width/height, 1, 1000);
+	camera.position.y = 80;
+	camera.position.z = 200;
+	camera.lookAt (new THREE.Vector3(0,0,0));
+
+	 var uniforms = {
+        texture: {
+            type: "t",
+          //  value: colormap
+        }
+    };
+	
+    var vertexShader = document.getElementById('vertexShaderDepth').textContent;
+    var fragmentShader = document.getElementById('fragmentShaderDepth').textContent;
+    tire.customDepthMaterial = new THREE.ShaderMaterial({
+        uniforms: uniforms,
+        vertexShader: vertexShader,
+        fragmentShader: fragmentShader
+    });
+
+	
+   
+	
+	spotLight = new THREE.SpotLight(0xffffff, 1.3);
+    spotLight.position.set(0, 100, 0);
+    spotLight.angle = Math.PI / 3;
+    
+    spotLight.castShadow = true;
+
+    spotLight.shadowMapWidth = 1024;
+    spotLight.shadowMapHeight = 1024;
+
+    spotLight.shadowCameraNear = 5;
+    spotLight.shadowCameraFar = 4000;
+    spotLight.shadowCameraFov = spotLight.angle / Math.PI * 180;
+
+    spotLight.exponent = 20;
+    spotLight.target = tire;
+    scene.add(spotLight);
+    var ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(400, 400, 130, 130),
+    new THREE.MeshLambertMaterial());
+    ground.rotation.x = -Math.PI / 2;
+	ground.position.set(0,-6.1,0);
+    scene.add(ground);
+	ground.receiveShadow = true;
+	tire.castShadow = true;
+	
+
+
+	renderer.shadowMapEnabled = true;
+	renderer.shadowMapType = THREE.PCFShadowMap;
+	
+	 controls = new THREE.OrbitControls(camera, renderer.domElement);
+	 document.body.appendChild (renderer.domElement);
+
+	
+	window.addEventListener ('resize', onWindowResize, false);
+}
+
+function onWindowResize ()
+{
+	camera.aspect = window.innerWidth / window.innerHeight;
+	camera.updateProjectionMatrix();
+	renderer.setSize (window.innerWidth, window.innerHeight);
+}
+function createMesh(geom, imageFile, bump) 
+{
+	geom.computeVertexNormals();
+
+	var mat = new THREE.MeshPhongMaterial({
+	side: THREE.DoubleSide
+	});
+	var texture = THREE.ImageUtils.loadTexture("images/" + imageFile)
+	mat.map = texture;
+	if (bump) {
+		var bump = THREE.ImageUtils.loadTexture("images/" + bump)
+		mat.bumpMap = bump;
+		mat.bumpScale = 0.2;
+	}
+
+	var mesh = new THREE.Mesh(geom, mat);
+
+	return mesh;
+}
+
+function animate()
+{
+var dt = clock.getDelta();
+
+	var dir = new THREE.Vector3(0,0,-1);
+
+	
+	dir.multiplyScalar (dt*speed);
+	dir.applyAxisAngle (new THREE.Vector3(0,1,0), angle);
+	pos.add (dir);  //pos = pos + dir;
+ 
+	if (tire != undefined) { 
+	tire.scale.set (0.2,0.2,0.2);
+	tire.position.set (pos.x, pos.y, pos.z);
+	tire.rotation.y = (angle+Math.PI/2);
+	tire.rotation.z -= speed * dt / 10;
+
+	}
+	
+	
+	requestAnimationFrame ( animate );
+	update();
+
+	renderer.render (scene, camera);
+}
+function myclamp(x,low,high)
+{
+	if (x < low) return low;
+	if (x > high) return high;
+	return x;
+}
+
+function update()
+{
+ controls.update();
+ keyboard.update();         
+ if ( keyboard.pressed("left") ) 
+ angle += 0.01;               
+ if ( keyboard.pressed("right") )
+ angle -= 0.01;               
+ if ( keyboard.pressed("up") )  
+ speed += 0.5;        
+ if ( keyboard.pressed("down") )  
+ speed -= 0.5;    
+
+ speed = myclamp (speed, 0.0, 20.0); 
+}
+
+</script>
+
+
+</body>
+
+</html>
