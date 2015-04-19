@@ -24,7 +24,9 @@
 </head>
 
 <body> 
-<div id="info">up/down:change speed left/right:change sign</div>
+<div id="info">up/down:change speed left/right:change sign<br/>
+press <a href = "javascript:toggle();">here</a> to change the third-person view 
+</div>
 <script src="js/three.min.js"></script>
 <script src="js/OrbitControls.js"></script>
 <script src="js/KeyboardState.js"></script>
@@ -68,28 +70,50 @@
 
 
 <script>
-var scene, renderer, camera, tire, controls, clock,spotLight;
+var scene, renderer, camera, tire, tire2, human, segway, controls, clock, spotLight;
+
 var sign = 1;
+var xangle = 0;
+var zangle = 0;
 var keyboard = new KeyboardState();
 var pos = new THREE.Vector3(0,0,0);
 var angle = 0,speed = 0;
+var s1 = 0, s2 = 0;
+var l = 60;
+var k =0;
+var v3D = false;
+
 init();
 animate();
 
 function init()
 {
 	tire = new THREE.Object3D();
+	human = new THREE.Object3D();
+	segway = new THREE.Object3D();
 	THREE.ImageUtils.crossOrigin = '';
 	scene = new THREE.Scene();
     clock = new THREE.Clock();
     var colormap = THREE.ImageUtils.loadTexture('images/tire1.png');
+	var platformGeom = new THREE.BoxGeometry(50, 5, 60);
 	var cubeGeometry = new THREE.CircleGeometry (33,20);
+	var axisGeom = new THREE.CylinderGeometry(2,2,100,30);
+	var handleGeom = new THREE.CylinderGeometry(2,2,60,30);
+	var legGeom = new THREE.CylinderGeometry(6,6,60,30);
+	var bodyGeom = new THREE.BoxGeometry(12,50,42);
+	var armGeom = new THREE.CylinderGeometry(5,5,20,30);
+	var handGeom = new THREE.SphereGeometry(7,30,30);
+	var neckGeom = new THREE.CylinderGeometry(6,6,10,30);
+	var headGeom = new THREE.SphereGeometry(20,30,30);
 	var tirePattern = new THREE.CylinderGeometry(30, 30, 12, 30, 1, true);
+	var segwayMaterial = new THREE.MeshPhongMaterial( {color: 0xaaaaaa} );
+	var humanMaterial = new THREE.MeshPhongMaterial( {color: 0xaaaa00} );
 	var tireMaterial = new THREE.MeshPhongMaterial({
         map: colormap,
         transparent: true,  // for cut-out texture
         side: THREE.DoubleSide
     });
+	
 	var mesh0 = new THREE.Mesh (cubeGeometry, tireMaterial);
     mesh0.rotation.order = 'ZYX';
     mesh0.rotation.z = Math.PI/2;
@@ -103,7 +127,53 @@ function init()
 	tire.add (mesh0);
 	tire.add (mesh1);
 	tire.add (mesh2);
-	scene.add (tire);
+	
+	tire2 = tire.clone();
+	tire2.position.set(0,0,72);
+	var mesh3 = new THREE.Mesh (platformGeom, segwayMaterial);
+	mesh3.position.set(0,0,30);
+	var mesh4 = new THREE.Mesh (axisGeom, segwayMaterial);
+	mesh4.position.set(24,52.5,30);
+	var mesh5 = new THREE.Mesh (handleGeom, segwayMaterial);
+	mesh5.rotation.x = Math.PI/2;
+	mesh5.position.set(24,104,30);
+	var mesh6 = new THREE.Mesh (legGeom, humanMaterial);
+	mesh6.position.set(-5,30,15);
+	var mesh7 = mesh6.clone();
+	mesh7.position.set(-5,30,45);
+	var mesh8 = new THREE.Mesh (bodyGeom, humanMaterial);
+	mesh8.position.set(-5,85,30);
+	var mesh9 = new THREE.Mesh (armGeom, humanMaterial);
+	mesh9.rotation.z = Math.PI/2;
+	mesh9.position.set(10,105,15);
+	var mesh10 = mesh9.clone();
+	mesh10.position.set(10,105,45);
+	var mesh11 = new THREE.Mesh (handGeom, humanMaterial);
+	mesh11.position.set(25,105,15);
+	var mesh12 = mesh11.clone();
+	mesh12.position.set(25,105,45);
+	var mesh13 = new THREE.Mesh (neckGeom, humanMaterial);
+	mesh13.position.set(-5,111,30);
+	var mesh14 = new THREE.Mesh (headGeom, humanMaterial);
+	mesh14.position.set(-5,135,30);
+	
+	segway.add (tire);
+	segway.add (tire2);
+	segway.add (mesh3);
+	human.add (mesh4);
+	human.add (mesh5);
+	human.add (mesh6);
+	human.add (mesh7);
+	human.add (mesh8);
+	human.add (mesh9);
+	human.add (mesh10);
+	human.add (mesh11);
+	human.add (mesh12);
+	human.add (mesh13);
+	human.add (mesh14);
+	segway.add (human);
+	scene.add(segway);
+	
 	renderer = new THREE.WebGLRenderer( {antialias:true} );
     var width = window.innerWidth;
     var height = window.innerHeight;
@@ -112,12 +182,15 @@ function init()
 	
 	
 	
-	
+	if(v3D == false){
     camera = new THREE.PerspectiveCamera (45, width/height, 1, 1000);
 	camera.position.y = 80;
 	camera.position.z = 200;
 	camera.lookAt (new THREE.Vector3(0,0,0));
-
+	}
+	
+	
+	
 	 var uniforms = {
         texture: {
             type: "t",
@@ -127,7 +200,7 @@ function init()
 	
     var vertexShader = document.getElementById('vertexShaderDepth').textContent;
     var fragmentShader = document.getElementById('fragmentShaderDepth').textContent;
-    tire.customDepthMaterial = new THREE.ShaderMaterial({
+    segway.customDepthMaterial = new THREE.ShaderMaterial({
         uniforms: uniforms,
         vertexShader: vertexShader,
         fragmentShader: fragmentShader
@@ -150,7 +223,7 @@ function init()
     spotLight.shadowCameraFov = spotLight.angle / Math.PI * 180;
 
     spotLight.exponent = 20;
-    spotLight.target = tire;
+    spotLight.target = segway;
     scene.add(spotLight);
     var ground = new THREE.Mesh(
     new THREE.PlaneGeometry(400, 400, 130, 130),
@@ -160,7 +233,7 @@ function init()
     scene.add(ground);
 	ground.receiveShadow = true;
 	//tire.castShadow = true;
-	 tire.traverse(function (mesh) {
+	 segway.traverse(function (mesh) {
         if (mesh instanceof(THREE.Mesh)) mesh.castShadow = true;
     });
 	
@@ -182,6 +255,13 @@ function onWindowResize ()
 	camera.updateProjectionMatrix();
 	renderer.setSize (window.innerWidth, window.innerHeight);
 }
+
+function toggle()
+{
+	v3D = !v3D;
+	console.log (v3D);
+}
+
 function createMesh(geom, imageFile, bump) 
 {
 	geom.computeVertexNormals();
@@ -213,12 +293,22 @@ var dt = clock.getDelta();
 	dir.applyAxisAngle (new THREE.Vector3(0,1,0), angle);
 	pos.add (dir);  //pos = pos + dir;
  
-	if (tire != undefined) { 
-	tire.scale.set (0.2,0.2,0.2);
-	tire.position.set (pos.x, pos.y, pos.z);
-	tire.rotation.y = (angle+Math.PI/2);
+	if (segway != undefined) { 
+	segway.scale.set (0.2,0.2,0.2);
+	segway.position.set (pos.x, pos.y, pos.z);
+	segway.rotation.y = (angle+Math.PI/2);
 	tire.rotation.z -= speed * dt / 10;
+	tire2.rotation.z -= speed * dt / 10;
+	if(v3D == true){
+     var relativeCameraOffset = new THREE.Vector3(-500,100,36);
 
+	 var cameraOffset = relativeCameraOffset.applyMatrix4( segway.matrixWorld );
+
+	 camera.position.x = cameraOffset.x;
+ 	 camera.position.y = cameraOffset.y;
+ 	 camera.position.z = cameraOffset.z;
+	 camera.lookAt( segway.position );
+	 }
 	}
 	
 	
@@ -233,20 +323,39 @@ function myclamp(x,low,high)
 	if (x > high) return high;
 	return x;
 }
-
+function myclamp(x, lo, hi) {
+    return x < lo ? lo : (x > hi ? hi : x);
+}
 function update()
 {
+ k = l*s1/(s2-s1);
+var omega = (s2-s1)/l;
  controls.update();
  keyboard.update();         
- if ( keyboard.pressed("left") ) 
- angle += 0.01;               
- if ( keyboard.pressed("right") )
- angle -= 0.01;               
- if ( keyboard.pressed("up") )  
- speed += 0.5;        
- if ( keyboard.pressed("down") )  
- speed -= 0.5;    
+ if ( keyboard.pressed("left") ) {
+ angle += 0.01;
+ xangle -= 0.01;
+ }
+ if ( keyboard.pressed("right") ){
+ angle -= 0.01;
+ xangle += 0.01;
+ 
+ }
+ if ( keyboard.pressed("up") ){  
+ speed += 0.5;
+ zangle -= 0.01; 
+ } 
+ if ( keyboard.pressed("down") ) { 
+ speed -= 0.5;
+  zangle += 0.01;
+ }
 
+ 
+    xangle = myclamp(xangle, -0.2, 0.1);
+    zangle = myclamp(zangle, -0.2, 0);
+ 
+	human.rotation.x = xangle;
+	human.rotation.z = zangle;
  speed = myclamp (speed, 0.0, 20.0); 
 }
 
