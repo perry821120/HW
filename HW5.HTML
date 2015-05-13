@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+<style>
+
+#info {
+    position: absolute;
+    top: 0px;
+    width: 100%;
+    padding: 10px;
+    text-align: center;
+    color: #ff0000
+}
+body {
+    overflow: hidden;
+}
+#angleInfo {
+		position: absolute;
+		bottom: 100px; width: 100%;
+		color: #ffffff;
+		text-align: center;
+	}
+	strong {color: red}
+/*	html, body
+{
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    border: solid 1px pink;
+}*/
+</style>
+</head>
+
+<body> 
+<div id="info"></div>
+<button id="bttn" class="buttonClass">save</button>
+<button id="bttn2" class="buttonClass">load</button>
+
+<script src="js/three.min.js"></script>
+<script src="js/OrbitControls.js"></script>
+<script src="js/KeyboardState.js"></script>
+<script type="x-shader/x-fragment" id="fragmentShaderDepth">
+
+    uniform sampler2D texture;
+    varying vec2 vUV;
+
+    vec4 pack_depth(const in float depth) {
+
+        const vec4 bit_shift = vec4(256.0 * 256.0 * 256.0, 256.0 * 256.0, 256.0, 1.0);
+        const vec4 bit_mask = vec4(0.0, 1.0 / 256.0, 1.0 / 256.0, 1.0 / 256.0);
+        vec4 res = fract(depth * bit_shift);
+        res -= res.xxyz * bit_mask;
+        return res;
+
+    }
+
+    void main() {
+
+        vec4 pixel = texture2D(texture, vUV);
+
+        if (pixel.a < 0.5) discard;
+
+        gl_FragData[0] = pack_depth(gl_FragCoord.z);
+
+    }
+</script>
+<script type="x-shader/x-vertex" id="vertexShaderDepth">
+    varying vec2 vUV;
+
+    void main() {
+
+        vUV = 1.0 * uv;
+
+        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+
+        gl_Position = projectionMatrix * mvPosition;
+
+    }
+</script>
+<script>
+var camera, scene, renderer, light, controls;
+var  picture1, picture2, picture3, picture4;
+
+init();
+animate();
+
+function init() {
+
+    scene = new THREE.Scene();
+
+    camera = new THREE.PerspectiveCamera(80, window.innerWidth / window.innerHeight, 1, 10000);
+    camera.position.z = 300;
+	
+	camera.lookAt (new THREE.Vector3(-500,500,0));
+    scene.add(camera);
+
+    
+	picture1 = new THREE.Object3D();
+	picture2 = new THREE.Object3D();
+	picture3 = new THREE.Object3D();
+    picture4 = new THREE.Object3D();
+	
+    var wallGeom = new THREE.BoxGeometry(1000, 1001, 1000);
+	var floorGeometry = new THREE.PlaneGeometry(1000, 1000);
+    var frame1Geometry = new THREE.BoxGeometry(20, 340, 20);
+	var frame2Geometry = new THREE.BoxGeometry(400, 20, 20);
+	var frameMaterial = new THREE.MeshPhongMaterial({color:0xB3990B});
+	var picGeometry = new THREE.PlaneGeometry(400, 300);
+	var pic1 = THREE.ImageUtils.loadTexture('images/picture_01.jpg');
+	var pic2 = THREE.ImageUtils.loadTexture('images/picture_02.jpg');
+	var pic3 = THREE.ImageUtils.loadTexture('images/picture_03.jpg');
+	var pic4 = THREE.ImageUtils.loadTexture('images/picture_04.jpg');
+	var pic1Material = new THREE.MeshBasicMaterial({
+        map: pic1,
+        transparent: true,  // for cut-out texture
+        side: THREE.DoubleSide
+    });
+	var pic2Material = new THREE.MeshBasicMaterial({
+        map: pic2,
+        transparent: true,  // for cut-out texture
+        side: THREE.DoubleSide
+    });
+	var pic3Material = new THREE.MeshBasicMaterial({
+        map: pic3,
+        transparent: true,  // for cut-out texture
+        side: THREE.DoubleSide
+    });
+	var pic4Material = new THREE.MeshBasicMaterial({
+        map: pic4,
+        transparent: true,  // for cut-out texture
+        side: THREE.DoubleSide
+    });
+	
+
+    var mesh = createMesh(wallGeom,'wall.jpg','wall_bump.jpg');
+       mesh.position.set(0, 0, 0);
+	var mesh1 = createMesh(floorGeometry,'floor.jpg','floor_bump.jpg');
+    mesh1.rotation.x = Math.PI/2;
+	mesh1.position.set(0, -500, 0);
+    var mesh2 = new THREE.Mesh(frame1Geometry,frameMaterial);
+	mesh2.position.set(-210, 100, -490);
+	var mesh3 = mesh2.clone();
+	mesh3.position.set(210, 100, -490);
+	var mesh4 = new THREE.Mesh(frame2Geometry,frameMaterial);
+	mesh4.position.set(0, -60, -490);
+	var mesh5 = mesh4.clone();
+	mesh5.position.set(0, 260, -490);
+	var mesh6 = mesh2.clone();
+	mesh6.position.set(-490, 100, 210);
+	var mesh7 = mesh2.clone();
+	mesh7.position.set(-490, 100, -210);
+	var mesh8 = mesh4.clone();
+	mesh8.rotation.y = Math.PI/2;
+	mesh8.position.set(-490, -60, 0);
+	var mesh9 = mesh8.clone();
+	mesh9.position.set(-490, 260, 0);
+	var mesh10 = mesh2.clone();
+	mesh10.position.set(490, 100, -450);
+	var mesh11 = mesh2.clone();
+	mesh11.position.set(490, 100, -30);
+	var mesh12 = mesh8.clone();
+	mesh12.position.set(490, -60, -240);
+	var mesh13 = mesh8.clone();
+	mesh13.position.set(490, 260, -240);
+	var mesh14 = mesh2.clone();
+	mesh14.position.set(490, 100, 30);
+	var mesh15 = mesh2.clone();
+	mesh15.position.set(490, 100, 450);
+	var mesh16 = mesh8.clone();
+	mesh16.position.set(490, -60, 240);
+	var mesh17 = mesh8.clone();
+	mesh17.position.set(490, 260, 240);
+	var mesh18 = new THREE.Mesh(picGeometry,pic1Material);
+	mesh18.position.set(0, 100, -490);
+	var mesh19 = new THREE.Mesh(picGeometry,pic2Material);
+	mesh19.rotation.y = Math.PI/2;
+	mesh19.position.set(-490, 100, 0);
+	var mesh20 = new THREE.Mesh(picGeometry,pic3Material);
+	mesh20.rotation.y = -Math.PI/2;
+	mesh20.position.set(490, 100, -240);
+	var mesh21 = new THREE.Mesh(picGeometry,pic4Material);
+	mesh21.rotation.y = -Math.PI/2;
+	mesh21.position.set(490, 100, 240);
+	
+	scene.add(mesh);
+	scene.add(mesh1);
+	picture1.add(mesh2);
+	picture1.add(mesh3);
+	picture1.add(mesh4);
+    picture1.add(mesh5);
+	picture1.add(mesh18);
+	picture2.add(mesh6);
+	picture2.add(mesh7);
+	picture2.add(mesh8);
+	picture2.add(mesh9);
+	picture2.add(mesh19);
+	picture3.add(mesh10);
+	picture3.add(mesh11);
+	picture3.add(mesh12);
+	picture3.add(mesh13);
+	picture3.add(mesh20);
+	picture4.add(mesh14);
+	picture4.add(mesh15);
+	picture4.add(mesh16);
+	picture4.add(mesh17);
+	picture4.add(mesh21);
+	
+	scene.add(picture1);
+	scene.add(picture2);
+	scene.add(picture3);
+	scene.add(picture4);
+	
+	
+
+    light = new THREE.PointLight(0xffffff);
+    light.position.set(0, 450, 0);
+    scene.add(light);
+
+   
+
+    renderer = new THREE.WebGLRenderer();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setClearColor(0xcccccc);
+
+    controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+    document.body.appendChild(renderer.domElement);
+
+}
+
+function createMesh(geom, imageFile, bump) 
+{
+	geom.computeVertexNormals();
+
+	var mat = new THREE.MeshPhongMaterial({
+	side: THREE.DoubleSide
+	});
+	var texture = THREE.ImageUtils.loadTexture("images/" + imageFile)
+	texture.wrapS = texture.wrapT = THREE.RepeatWrapping; 
+	texture.repeat.set(1,1);
+	mat.map = texture;
+	if (bump) {
+		var bump = THREE.ImageUtils.loadTexture("images/" + bump)
+		mat.bumpMap = bump;
+		mat.bumpScale = 0.2;
+	}
+
+	var mesh = new THREE.Mesh(geom, mat);
+
+	return mesh;
+}
+function animate() {
+    controls.update();
+    requestAnimationFrame(animate);
+    render();
+}
+
+function render() {
+;
+    renderer.render(scene, camera);
+}
+</script>
+
+
+</body>
+
+</html>
