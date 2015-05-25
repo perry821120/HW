@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+<style>
+
+#info {
+    position: absolute;
+    top: 0px;
+    width: 100%;
+    padding: 10px;
+    text-align: center;
+    color: #ffff00
+}
+body {
+    overflow: hidden;
+}
+</style>
+</head>
+
+<body> 
+
+<script src="js/three.min.js"></script>
+<script src="js/OrbitControls.js"></script>
+</script>
+<script id="myVertexShader" type="x-shader/x-vertex">
+    varying vec2 vUv;
+    void main() {
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        vUv = uv;
+    }
+</script>
+<script id="myFragmentShader" type="x-shader/x-fragment">
+    uniform sampler2D texture;
+    varying vec2 vUv;
+	
+	
+
+    void main() {
+        vec4 color = texture2D (texture,vUv);
+        if (color.b > 0.85) 
+            discard;
+        else 
+            gl_FragColor = vec4(.2, .2, .2, 0.) + color;
+    }
+	</script>
+	<script type="x-shader/x-fragment" id="fragmentShaderDepth">
+    uniform sampler2D texture;
+    varying vec2 vUv;
+
+    vec4 pack_depth(const in float depth) {
+        const vec4 bit_shift = vec4(256.0 * 256.0 * 256.0, 256.0 * 256.0, 256.0, 1.0);
+        const vec4 bit_mask = vec4(0.0, 1.0 / 256.0, 1.0 / 256.0, 1.0 / 256.0);
+        vec4 res = fract(depth * bit_shift);
+        res -= res.xxyz * bit_mask;
+        return res;
+    }
+
+    void main() {
+        vec4 pixel = texture2D(texture, vUv);
+        if (pixel.b > 0.85) discard;
+        gl_FragData[0] = pack_depth(gl_FragCoord.z);
+    }
+	</script>
+
+
+
+<script>
+var camera, scene, renderer, light, controls;
+var sceneRTT, rtTexture, teapot;
+var angle = 0;
+
+init();
+animate();
+
+function init() {
+    sceneRTT = new THREE.Scene();
+    light = new THREE.PointLight(0xffffff);
+    light.position.set(0, 300, 200);
+    sceneRTT.add(light);
+
+    rtTexture = new THREE.WebGLRenderTarget(
+    window.innerWidth, window.innerHeight, {
+        minFilter: THREE.LinearFilter,
+        magFilter: THREE.NearestFilter,
+        format: THREE.RGBFormat
+    });
+
+    var jsonLoader = new THREE.JSONLoader();
+    jsonLoader.load("js/teapot.json", function (geometry) {
+        teapot = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({
+            color: 0xff1234
+        }));
+     teapot.scale.set(32, 32, 32);
+        sceneRTT.add(teapot);
+    });
+
+    //////////////////////////////////////////////////
+
+    scene = new THREE.Scene();
+    var plane = new THREE.PlaneBufferGeometry(50, 50);
+    rttmaterial = new THREE.ShaderMaterial({
+        uniforms: {
+            texture: {
+                type: "t",
+                value: rtTexture
+            }
+        },
+        vertexShader: document.getElementById('myVertexShader').textContent,
+        fragmentShader: document.getElementById('myFragmentShader').textContent
+    });
+    quad = new THREE.Mesh(plane,
+    rttmaterial);
+    scene.add(quad);
+
+    for (var i = -5; i <= 4; i++)
+    for (var j = -5; j <= 4; j++) {
+        var quadij = quad.clone();
+        quadij.position.set(50 * i, 0, 50 * j);
+        scene.add(quadij);
+    }
+
+    renderer = new THREE.WebGLRenderer({
+        antialias: true
+    });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setClearColor(0x888888);
+
+    camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 1000);
+    camera.position.y = 80;
+    camera.position.z = 400;
+    camera.lookAt(new THREE.Vector3(0, 0, 0));
+
+    controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+    var ambientLight = new THREE.AmbientLight(0x555555);
+    scene.add(ambientLight);
+
+    document.body.appendChild(renderer.domElement);
+	
+	renderer.shadowMapEnabled = true;
+    renderer.shadowMapType = THREE.PCFShadowMap;
+
+    quad.castShadow = true;
+    quad.customDepthMaterial = new THREE.ShaderMaterial({
+        side: THREE.DoubleSide,
+        uniforms: {
+            texture: {
+                type: 't',
+                value: rtTexture
+            }
+        },
+        vertexShader: document.getElementById('myVertexShader').textContent,
+        fragmentShader: document.getElementById('fragmentShaderDepth').textContent
+    });
+
+    spotLight = new THREE.SpotLight(0xffffff, 1);
+    spotLight.position.set(0, 300, 300);
+    spotLight.angle = Math.PI / 3;
+    spotLight.castShadow = true;
+    spotLight.shadowMapWidth = 1024;
+    spotLight.shadowMapHeight = 1024;
+    spotLight.shadowCameraNear = 5;
+    spotLight.shadowCameraFar = 4000;
+    spotLight.shadowCameraFov = spotLight.angle / Math.PI * 180;
+    spotLight.exponent = 20;
+    scene.add(spotLight);
+
+    var ground = new THREE.Mesh(
+        new THREE.PlaneGeometry(600, 600, 130, 130),
+        new THREE.MeshLambertMaterial());
+    ground.rotation.x = -Math.PI / 2;
+    scene.add(ground);
+    ground.receiveShadow = true;
+}
+
+function animate() {
+    controls.update();
+    angle += 0.05;
+    if (teapot !== undefined) teapot.rotation.y = angle;
+
+    requestAnimationFrame(animate);
+    render();
+}
+
+function render() {
+    // render teapot to texture
+    renderer.setClearColor(0x0000ff);
+    renderer.render(sceneRTT, camera, rtTexture, true);
+
+    // render texture to screne
+    renderer.setClearColor(0x888888);
+    renderer.render(scene, camera);
+}
+</script>
+
+
+</body>
+
+</html>
